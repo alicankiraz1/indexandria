@@ -22,35 +22,69 @@ Indexandria is a [Claude Code](https://code.claude.com) plugin inspired by Curso
 - **Persistent Index** — Indexed docs survive across sessions, no need to re-crawl every time
 - **Source Management** — Add, remove, reindex, and list documentation sources on the fly
 
-## Quick Start
+## Installation
 
-### Install
+### Prerequisites
+
+- Claude Code v1.0.33+
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/)
+
+### Step 1: Install the Plugin
 
 ```
 /plugin marketplace add alicankiraz1/indexandria
 /plugin install indexandria@indexandria
 ```
 
-Requires Claude Code v1.0.33+, Python 3.10+, and [uv](https://docs.astral.sh/uv/).
+### Step 2: Start the Server
 
-### Use
+Indexandria runs as a local HTTP server that you control. Open a terminal and run:
 
-Index some docs:
+```bash
+# Clone the repo (first time only)
+git clone https://github.com/alicankiraz1/indexandria.git ~/.indexandria/repo
+
+# Start the server
+~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh
+```
+
+The server starts on `http://localhost:21517/mcp` and runs in the background. To stop it:
+
+```bash
+~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh stop
+```
+
+### Step 3: Use It
+
+Open Claude Code and start indexing:
 
 ```
 > Index the React docs: https://react.dev/reference
 ```
 
-Then just code — Claude will search the index automatically:
+## Usage Examples
 
+**Index documentation:**
 ```
-> Build a custom hook that debounces API calls
+> Index https://fastapi.tiangolo.com with depth 2
 ```
 
-Or search explicitly:
+**Automatic context** — just code, Claude searches the index on its own:
+```
+> Build a FastAPI endpoint with request validation
+```
 
+**Explicit search:**
 ```
 > /indexandria:doc-search useEffect cleanup function
+```
+
+**Manage sources:**
+```
+> List all indexed documentation sources
+> Reindex the FastAPI docs
+> Remove the React docs from the index
 ```
 
 ## All MCP Tools
@@ -90,17 +124,37 @@ You ask Claude a question
 3. **Index** — Chunks are stored in SQLite with FTS5 virtual tables using Porter stemming and Unicode tokenization
 4. **Search** — BM25 ranking returns the most relevant chunks with highlighted snippets
 
-All data is stored locally at `~/.indexandria/index.db`.
+## Security & Privacy
 
-## Local Development
+Indexandria is designed with transparency in mind:
+
+- **HTTP transport** — The plugin connects to the server via `http://localhost:21517/mcp`. It does not execute commands on your machine. You start and stop the server yourself.
+- **Local only** — All data stays on your machine at `~/.indexandria/index.db`. Nothing is sent to external services.
+- **No file system access** — The server only reads from the web (URLs you provide) and writes to its own SQLite database. It does not access your project files.
+- **Open source** — Every line of code is auditable in this repository.
+- **User controlled** — You decide when the server runs, which URLs to index, and when to stop it.
+
+## Advanced
+
+### Custom Port
 
 ```bash
-git clone https://github.com/alicankiraz1/indexandria.git
-cd indexandria/plugins/indexandria/servers/indexer
-uv sync
+# Start on a different port
+~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh 9000
+```
 
-# Test the plugin without installing
-claude --plugin-dir ../../
+Then update the MCP connection in Claude Code:
+```
+claude mcp add --transport http indexandria http://localhost:9000/mcp
+```
+
+### Stdio Mode (for advanced users)
+
+If you prefer the traditional stdio transport:
+
+```bash
+claude mcp add --transport stdio indexandria -- \
+  uv run --directory ~/.indexandria/repo/plugins/indexandria/servers/indexer server.py --stdio
 ```
 
 ## Contributing

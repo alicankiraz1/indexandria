@@ -2,11 +2,18 @@
 
 Exposes tools for crawling, indexing, and searching web documentation
 via the Model Context Protocol using FastMCP.
+
+Run modes:
+  HTTP (default):  python server.py                → http://localhost:21517/mcp
+  HTTP (custom):   python server.py --port 9000    → http://localhost:9000/mcp
+  Stdio:           python server.py --stdio        → stdio transport
 """
 
 from __future__ import annotations
 
+import argparse
 import logging
+import os
 import sys
 import time
 from collections.abc import AsyncIterator
@@ -25,6 +32,8 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger("indexandria")
+
+DEFAULT_PORT = int(os.environ.get("INDEXANDRIA_PORT", "21517"))
 
 
 @dataclass
@@ -55,6 +64,8 @@ mcp = FastMCP(
         "The index persists across sessions."
     ),
     lifespan=app_lifespan,
+    host="127.0.0.1",
+    port=DEFAULT_PORT,
 )
 
 
@@ -331,5 +342,27 @@ async def get_index_stats(ctx=None) -> str:
 # ── Entry Point ────────────────────────────────────────────────────
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Indexandria MCP Server")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT,
+        help=f"HTTP port (default: {DEFAULT_PORT})",
+    )
+    parser.add_argument(
+        "--stdio", action="store_true",
+        help="Use stdio transport instead of HTTP",
+    )
+    args = parser.parse_args()
+
+    if args.stdio:
+        logger.info("Starting Indexandria in stdio mode")
+        mcp.run(transport="stdio")
+    else:
+        if args.port != DEFAULT_PORT:
+            mcp.settings.port = args.port
+        logger.info("Starting Indexandria on http://localhost:%d/mcp", args.port)
+        mcp.run(transport="streamable-http")
+
+
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    main()
