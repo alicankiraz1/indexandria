@@ -1,114 +1,111 @@
 # Indexandria
 
-A Claude Code plugin that crawls and indexes web documentation, making it available as context while coding. Works like Cursor's built-in documentation indexer.
+**Crawl and index any web documentation, then let Claude Code use it as context while you write code.**
 
-*Named after the Great Library of Alexandria — your own documentation library for Claude Code.*
+Indexandria is a [Claude Code](https://code.claude.com) plugin inspired by Cursor's built-in documentation indexer. Point it at any documentation URL, and it will crawl the pages, chunk the content intelligently, and build a local full-text search index. Claude then automatically searches this index whenever you're working with the indexed technologies — no manual lookups needed.
+
+*Named after the Great Library of Alexandria.*
+
+## Why Indexandria?
+
+- You're working with a framework whose docs Claude doesn't know well enough
+- You want Claude to reference your company's internal documentation
+- You need precise, up-to-date API information instead of stale training data
+- You want Cursor-style doc indexing inside Claude Code
 
 ## Features
 
-- **URL Crawling**: Crawl documentation sites with configurable depth and URL patterns
-- **Full-Text Search**: SQLite FTS5 powered search with BM25 relevance ranking
-- **Smart Chunking**: Heading-aware text splitting for optimal search results
-- **Auto-Context**: Claude automatically searches indexed docs when writing code
-- **Source Management**: Add, remove, reindex, and list documentation sources
+- **Deep Crawling** — Follow links up to 3 levels deep with URL pattern filtering
+- **Full-Text Search** — SQLite FTS5 with BM25 relevance ranking, no external services needed
+- **Smart Chunking** — Heading-aware splitting preserves document structure and context
+- **Automatic Lookup** — Claude searches the index on its own when writing related code
+- **Persistent Index** — Indexed docs survive across sessions, no need to re-crawl every time
+- **Source Management** — Add, remove, reindex, and list documentation sources on the fly
 
-## Requirements
+## Quick Start
 
-- Claude Code v1.0.33 or later
-- Python 3.10+
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
-
-## Installation
-
-### Step 1: Add the Marketplace
-
-In Claude Code, run:
+### Install
 
 ```
-/plugin marketplace add alicankiraz/indexandria
-```
-
-### Step 2: Install the Plugin
-
-```
+/plugin marketplace add alicankiraz1/indexandria
 /plugin install indexandria@indexandria
 ```
 
-That's it! The MCP server and skill are now active.
+Requires Claude Code v1.0.33+, Python 3.10+, and [uv](https://docs.astral.sh/uv/).
 
-### Alternative: Local Development
+### Use
 
-```bash
-git clone https://github.com/alicankiraz/indexandria.git
-cd indexandria
-
-# Install Python dependencies
-cd plugins/indexandria/servers/indexer && uv sync && cd ../../../..
-
-# Run Claude Code with the plugin loaded locally
-claude --plugin-dir ./plugins/indexandria
-```
-
-## Usage
-
-### Index Documentation
-
-Ask Claude to index a documentation URL:
+Index some docs:
 
 ```
-> Index the React documentation: https://react.dev/reference
+> Index the React docs: https://react.dev/reference
 ```
 
-Or use the search skill directly:
+Then just code — Claude will search the index automatically:
+
+```
+> Build a custom hook that debounces API calls
+```
+
+Or search explicitly:
 
 ```
 > /indexandria:doc-search useEffect cleanup function
 ```
 
-### Automatic Usage
+## All MCP Tools
 
-Once documentation is indexed, Claude automatically searches the index when you ask coding questions related to the indexed content:
-
-```
-> How do I use the useEffect hook with cleanup?
-> Write a Next.js API route with error handling
-```
-
-### Manage Sources
-
-```
-> List all indexed documentation sources
-> Remove the React docs from the index
-> Reindex the Next.js documentation
-```
-
-## MCP Tools
-
-| Tool | Description |
+| Tool | What it does |
 |------|-------------|
-| `crawl_and_index` | Crawl a URL and index its content |
-| `search_docs` | Search indexed documentation |
-| `get_document` | Retrieve a specific document |
-| `list_sources` | List all indexed sources |
-| `remove_source` | Remove a source and its documents |
-| `reindex_source` | Re-crawl and update an existing source |
-| `get_index_stats` | Get index statistics |
+| `crawl_and_index` | Crawl a URL (configurable depth & URL filters) and index its content |
+| `search_docs` | Full-text search across all indexed documentation |
+| `get_document` | Retrieve the full content of a specific indexed page |
+| `list_sources` | Show all indexed documentation sources with stats |
+| `remove_source` | Delete a source and all its indexed data |
+| `reindex_source` | Re-crawl a source to pick up documentation updates |
+| `get_index_stats` | Show index size, chunk counts, and per-source breakdown |
 
-## Architecture
+## How It Works
 
 ```
-Indexandria Plugin
-├── MCP Server (Python/FastMCP)
-│   ├── Crawler (httpx + BeautifulSoup4 + markdownify)
-│   ├── Chunker (heading-based + size-based splitting)
-│   └── Indexer (SQLite FTS5)
-└── Skill (doc-search)
-    └── Guides Claude on when/how to search indexed docs
+You ask Claude a question
+        │
+        ▼
+  ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+  │  doc-search  │────▶│  MCP Server  │────▶│ SQLite FTS5 │
+  │   (Skill)    │     │  (FastMCP)   │     │   (Index)   │
+  └─────────────┘     └──────────────┘     └─────────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+        ┌──────────┐  ┌──────────┐  ┌──────────┐
+        │ Crawler  │  │ Chunker  │  │ Indexer   │
+        │httpx+BS4 │  │ heading  │  │  BM25     │
+        │+markdown │  │  aware   │  │ ranking   │
+        └──────────┘  └──────────┘  └──────────┘
 ```
 
-## Data Storage
+1. **Crawl** — `httpx` fetches pages, `BeautifulSoup4` extracts content, `markdownify` converts to clean Markdown
+2. **Chunk** — Documents are split by headings first, then by size (~1500 chars) with overlap for context continuity
+3. **Index** — Chunks are stored in SQLite with FTS5 virtual tables using Porter stemming and Unicode tokenization
+4. **Search** — BM25 ranking returns the most relevant chunks with highlighted snippets
 
-Indexed data is stored in `~/.indexandria/index.db` (SQLite database). The database uses FTS5 virtual tables for fast full-text search with BM25 ranking.
+All data is stored locally at `~/.indexandria/index.db`.
+
+## Local Development
+
+```bash
+git clone https://github.com/alicankiraz1/indexandria.git
+cd indexandria/plugins/indexandria/servers/indexer
+uv sync
+
+# Test the plugin without installing
+claude --plugin-dir ../../
+```
+
+## Contributing
+
+Issues and pull requests are welcome at [github.com/alicankiraz1/indexandria](https://github.com/alicankiraz1/indexandria).
 
 ## License
 
