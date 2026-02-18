@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Indexandria — crawl and index web documentation for Claude Code, like Cursor's built-in indexer.",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "plugins": [
     {
       "name": "indexandria",
       "source": "./plugins/indexandria",
-      "description": "Crawl and index web documentation for context-aware coding assistance.",
-      "version": "1.0.0",
+      "description": "Crawl web documentation straight into Claude Code's context — no database, no disk writes.",
+      "version": "2.0.0",
       "author": {
         "name": "Alican Kiraz"
       },

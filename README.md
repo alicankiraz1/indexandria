@@ -1,165 +1,89 @@
 # Indexandria
 
-**Crawl and index any web documentation, then let Claude Code use it as context while you write code.**
+**Crawl any web documentation and pull it straight into Claude Code's context.**
 
-Indexandria is a [Claude Code](https://code.claude.com) plugin inspired by Cursor's built-in documentation indexer. Point it at any documentation URL, and it will crawl the pages, chunk the content intelligently, and build a local full-text search index. Claude then automatically searches this index whenever you're working with the indexed technologies — no manual lookups needed.
+Indexandria is a [Claude Code](https://code.claude.com) plugin that fetches documentation from any URL, converts it to clean markdown, and returns it directly into the conversation. Claude then uses this content as context while writing code — no database, no background server, no disk writes.
 
 *Named after the Great Library of Alexandria.*
 
-## Why Indexandria?
-
-- You're working with a framework whose docs Claude doesn't know well enough
-- You want Claude to reference your company's internal documentation
-- You need precise, up-to-date API information instead of stale training data
-- You want Cursor-style doc indexing inside Claude Code
-
-## Features
-
-- **Deep Crawling** — Follow links up to 3 levels deep with URL pattern filtering
-- **Full-Text Search** — SQLite FTS5 with BM25 relevance ranking, no external services needed
-- **Smart Chunking** — Heading-aware splitting preserves document structure and context
-- **Automatic Lookup** — Claude searches the index on its own when writing related code
-- **Persistent Index** — Indexed docs survive across sessions, no need to re-crawl every time
-- **Source Management** — Add, remove, reindex, and list documentation sources on the fly
-
-## Installation
-
-### Prerequisites
-
-- Claude Code v1.0.33+
-- Python 3.10+
-- [uv](https://docs.astral.sh/uv/)
-
-### Step 1: Install the Plugin
+## Install
 
 ```
 /plugin marketplace add alicankiraz1/indexandria
 /plugin install indexandria@indexandria
 ```
 
-### Step 2: Start the Server
+Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 
-Indexandria runs as a local HTTP server that you control. Open a terminal and run:
+## Use
 
-```bash
-# Clone the repo (first time only)
-git clone https://github.com/alicankiraz1/indexandria.git ~/.indexandria/repo
-
-# Start the server
-~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh
-```
-
-The server starts on `http://localhost:21517/mcp` and runs in the background. To stop it:
-
-```bash
-~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh stop
-```
-
-### Step 3: Use It
-
-Open Claude Code and start indexing:
+Tell Claude to fetch some docs:
 
 ```
-> Index the React docs: https://react.dev/reference
+> Crawl https://fastapi.tiangolo.com/tutorial/ and then build me an API with validation
 ```
 
-## Usage Examples
+Or use the skill directly:
 
-**Index documentation:**
 ```
-> Index https://fastapi.tiangolo.com with depth 2
-```
-
-**Automatic context** — just code, Claude searches the index on its own:
-```
-> Build a FastAPI endpoint with request validation
+> /indexandria:doc-search https://react.dev/reference/react/useEffect
 ```
 
-**Explicit search:**
-```
-> /indexandria:doc-search useEffect cleanup function
-```
-
-**Manage sources:**
-```
-> List all indexed documentation sources
-> Reindex the FastAPI docs
-> Remove the React docs from the index
-```
-
-## All MCP Tools
-
-| Tool | What it does |
-|------|-------------|
-| `crawl_and_index` | Crawl a URL (configurable depth & URL filters) and index its content |
-| `search_docs` | Full-text search across all indexed documentation |
-| `get_document` | Retrieve the full content of a specific indexed page |
-| `list_sources` | Show all indexed documentation sources with stats |
-| `remove_source` | Delete a source and all its indexed data |
-| `reindex_source` | Re-crawl a source to pick up documentation updates |
-| `get_index_stats` | Show index size, chunk counts, and per-source breakdown |
+Claude will crawl the pages, pull the content into context, and use it while writing code. That's it.
 
 ## How It Works
 
 ```
-You ask Claude a question
+"Crawl the FastAPI docs"
         │
         ▼
-  ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-  │  doc-search  │────▶│  MCP Server  │────▶│ SQLite FTS5 │
-  │   (Skill)    │     │  (FastMCP)   │     │   (Index)   │
-  └─────────────┘     └──────────────┘     └─────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              ▼              ▼              ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────┐
-        │ Crawler  │  │ Chunker  │  │ Indexer   │
-        │httpx+BS4 │  │ heading  │  │  BM25     │
-        │+markdown │  │  aware   │  │ ranking   │
-        └──────────┘  └──────────┘  └──────────┘
+  ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+  │   Claude     │────▶│  crawl_docs  │────▶│   Crawler    │
+  │   Code       │     │  (MCP tool)  │     │ httpx + BS4  │
+  └─────────────┘     └──────────────┘     └──────────────┘
+        │                                          │
+        │              markdown content            │
+        │◀─────────────────────────────────────────┘
+        │
+        ▼
+  Claude writes code using the docs as context
 ```
 
-1. **Crawl** — `httpx` fetches pages, `BeautifulSoup4` extracts content, `markdownify` converts to clean Markdown
-2. **Chunk** — Documents are split by headings first, then by size (~1500 chars) with overlap for context continuity
-3. **Index** — Chunks are stored in SQLite with FTS5 virtual tables using Porter stemming and Unicode tokenization
-4. **Search** — BM25 ranking returns the most relevant chunks with highlighted snippets
+1. You mention a URL or ask about a framework
+2. Claude calls `crawl_docs` with the URL
+3. The crawler fetches pages, strips noise, converts to markdown
+4. Content goes straight into the conversation context
+5. Claude uses it to write accurate code
+
+**No database. No files. No background process.** Everything lives in the conversation.
+
+## Options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `url` | required | Starting URL to crawl |
+| `depth` | 2 | Link levels to follow (1-3) |
+| `max_pages` | 30 | Maximum pages to fetch |
+| `include_patterns` | none | URL globs to include (e.g. `["*/docs/*"]`) |
+| `exclude_patterns` | none | URL globs to exclude (e.g. `["*/blog/*"]`) |
+
+## Tips
+
+- **Be specific** — point to the relevant docs section, not the entire site
+- **Use depth=1** for a single page, **depth=2** to pull in linked subpages
+- **Cap with max_pages** if you're worried about context space
+- **Use include_patterns** to stay within a docs section: `["*/reference/*"]`
 
 ## Security & Privacy
 
-Indexandria is designed with transparency in mind:
-
-- **HTTP transport** — The plugin connects to the server via `http://localhost:21517/mcp`. It does not execute commands on your machine. You start and stop the server yourself.
-- **Local only** — All data stays on your machine at `~/.indexandria/index.db`. Nothing is sent to external services.
-- **No file system access** — The server only reads from the web (URLs you provide) and writes to its own SQLite database. It does not access your project files.
-- **Open source** — Every line of code is auditable in this repository.
-- **User controlled** — You decide when the server runs, which URLs to index, and when to stop it.
-
-## Advanced
-
-### Custom Port
-
-```bash
-# Start on a different port
-~/.indexandria/repo/plugins/indexandria/servers/indexer/start.sh 9000
-```
-
-Then update the MCP connection in Claude Code:
-```
-claude mcp add --transport http indexandria http://localhost:9000/mcp
-```
-
-### Stdio Mode (for advanced users)
-
-If you prefer the traditional stdio transport:
-
-```bash
-claude mcp add --transport stdio indexandria -- \
-  uv run --directory ~/.indexandria/repo/plugins/indexandria/servers/indexer server.py --stdio
-```
+- **No data stored** — nothing is written to disk, ever
+- **No external services** — all processing is local
+- **Ephemeral** — content exists only in the current conversation
+- **Open source** — the entire codebase is ~150 lines of Python
 
 ## Contributing
 
-Issues and pull requests are welcome at [github.com/alicankiraz1/indexandria](https://github.com/alicankiraz1/indexandria).
+[github.com/alicankiraz1/indexandria](https://github.com/alicankiraz1/indexandria)
 
 ## License
 

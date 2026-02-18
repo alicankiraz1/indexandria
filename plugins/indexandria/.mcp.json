@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "indexandria": {
-      "type": "http",
-      "url": "http://localhost:21517/mcp"
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}/servers/indexer", "server.py"],
+      "env": {
+        "UV_CACHE_DIR": "${HOME}/.indexandria/uv-cache"
+      }
     }
   }
 }
