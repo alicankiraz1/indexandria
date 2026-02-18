@@ -4,7 +4,8 @@
       "command": "uv",
       "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}/servers/indexer", "server.py"],
       "env": {
-        "INDEXER_DB_PATH": "${HOME}/.indexandria/index.db"
+        "INDEXER_DB_PATH": "${HOME}/.indexandria/index.db",
+        "UV_CACHE_DIR": "${HOME}/.indexandria/uv-cache"
       }
     }
   }
