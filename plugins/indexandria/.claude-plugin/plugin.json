@@ -1,0 +1,11 @@
+{
+  "name": "indexandria",
+  "version": "1.0.0",
+  "description": "Crawl and index web documentation for context-aware coding assistance. Works like Cursor's built-in indexer for Claude Code.",
+  "author": {
+    "name": "Alican Kiraz"
+  },
+  "homepage": "https://github.com/alicankiraz/indexandria",
+  "license": "MIT",
+  "keywords": ["indexer", "documentation", "search", "crawler", "docs", "indexandria"]
+}
