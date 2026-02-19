@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 import re
+from collections import deque
 from fnmatch import fnmatch
 from typing import Optional
 from urllib.parse import urljoin, urlparse, urldefrag
@@ -39,7 +39,10 @@ MAX_PAGE_SIZE = 5 * 1024 * 1024
 
 def _extract(html: str, url: str) -> tuple[str, str, list[str]]:
     """Extract title, markdown content, and links from HTML."""
-    soup = BeautifulSoup(html, "lxml")
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:
+        soup = BeautifulSoup(html, "html.parser")
 
     title = ""
     title_tag = soup.find("title")
@@ -56,6 +59,9 @@ def _extract(html: str, url: str) -> tuple[str, str, list[str]]:
         or soup
     )
 
+    # Collect links BEFORE removing noise so we don't lose nav/sidebar links
+    links = [urljoin(url, a["href"]) for a in content_root.find_all("a", href=True)]
+
     for tag_name in NOISE_TAGS:
         for tag in content_root.find_all(tag_name):
             tag.decompose()
@@ -65,8 +71,6 @@ def _extract(html: str, url: str) -> tuple[str, str, list[str]]:
         tag.decompose()
     for img_tag in content_root.find_all("img"):
         img_tag.decompose()
-
-    links = [urljoin(url, a["href"]) for a in content_root.find_all("a", href=True)]
 
     markdown_content = md(str(content_root), heading_style="ATX", bullets="-")
     markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content).strip()
@@ -112,6 +116,10 @@ async def crawl(
     Crawl a URL and return pages as a list of {url, title, content} dicts.
     Everything stays in memory — nothing is written to disk.
     """
+    parsed = urlparse(start_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return []
+
     include = include_patterns or []
     exclude = exclude_patterns or []
     max_depth = max(1, min(max_depth, 3))
@@ -120,15 +128,17 @@ async def crawl(
     start_url = _normalize(start_url)
     visited.add(start_url)
 
-    queue: list[tuple[str, int]] = [(start_url, 0)]
+    queue: deque[tuple[str, int]] = deque([(start_url, 0)])
     results: list[dict] = []
+    skipped = 0
     sem = asyncio.Semaphore(5)
 
     async with httpx.AsyncClient(headers=DEFAULT_HEADERS, follow_redirects=True, timeout=30) as client:
         while queue and len(results) < max_pages:
-            batch = [queue.pop(0) for _ in range(min(len(queue), 8))]
+            batch = [queue.popleft() for _ in range(min(len(queue), 8))]
 
             async def fetch(url: str, depth: int):
+                nonlocal skipped
                 async with sem:
                     try:
                         resp = await client.get(url)
@@ -144,7 +154,8 @@ async def crawl(
                         return {"url": url, "title": title, "content": content,
                                 "links": links, "depth": depth}
                     except Exception as e:
-                        logger.debug("Skip %s: %s", url, e)
+                        logger.warning("Skip %s: %s", url, e)
+                        skipped += 1
                         return None
                     finally:
                         await asyncio.sleep(0.3)
@@ -161,4 +172,5 @@ async def crawl(
                             visited.add(norm)
                             queue.append((norm, result["depth"] + 1))
 
+    logger.info("Crawl complete: %d fetched, %d skipped", len(results), skipped)
     return results

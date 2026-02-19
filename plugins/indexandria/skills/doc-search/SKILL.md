@@ -31,6 +31,7 @@ crawl_docs("https://react.dev", depth=3)  # too broad — will be slow and use l
 ## Tips
 
 - Use `depth=1` for a single page, `depth=2` to include linked subpages.
-- Use `max_pages` to cap how many pages are fetched (default 30).
+- Use `max_pages` to cap how many pages are fetched (default 15, max 50).
 - Use `include_patterns` to stay within a docs section: `["*/reference/*"]`
+- Output is capped at ~110 KB to fit within MCP token limits. If a crawl is too large, remaining pages are noted but omitted.
 - The content goes straight into the conversation context. Keep crawls focused to preserve context space.

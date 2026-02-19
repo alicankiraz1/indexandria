@@ -10,9 +10,12 @@ import logging
 import sys
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
 from crawler import crawl
+
+MAX_OUTPUT_CHARS = 110_000
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +38,7 @@ mcp = FastMCP(
 async def crawl_docs(
     url: str,
     depth: int = 2,
-    max_pages: int = 30,
+    max_pages: int = 15,
     include_patterns: Optional[list[str]] = None,
     exclude_patterns: Optional[list[str]] = None,
 ) -> str:
@@ -48,15 +51,19 @@ async def crawl_docs(
     Args:
         url: The starting URL (e.g. https://react.dev/reference/react/useEffect).
         depth: How many levels of links to follow (1-3, default 2).
-        max_pages: Maximum number of pages to crawl (default 30).
+        max_pages: Maximum number of pages to crawl (default 15).
         include_patterns: URL glob patterns to include (e.g. ["*/docs/*"]).
         exclude_patterns: URL glob patterns to exclude (e.g. ["*/blog/*"]).
 
     Returns:
         Crawled documentation as markdown, ready to use as context.
     """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return f"Invalid URL: {url} — only http/https URLs are supported."
+
     depth = max(1, min(depth, 3))
-    max_pages = max(1, min(max_pages, 100))
+    max_pages = max(1, min(max_pages, 50))
 
     start = time.time()
     pages = await crawl(
@@ -72,8 +79,17 @@ async def crawl_docs(
         return f"No content found at {url}"
 
     parts = [f"# Crawled {len(pages)} page(s) from {url} ({elapsed}s)\n"]
+    total_chars = len(parts[0])
+    included = 0
     for page in pages:
-        parts.append(f"\n---\n## {page['title'] or page['url']}\nSource: {page['url']}\n\n{page['content']}\n")
+        chunk = f"\n---\n## {page['title'] or page['url']}\nSource: {page['url']}\n\n{page['content']}\n"
+        if total_chars + len(chunk) > MAX_OUTPUT_CHARS:
+            remaining = len(pages) - included
+            parts.append(f"\n---\n*{remaining} more page(s) omitted (output size limit)*\n")
+            break
+        parts.append(chunk)
+        total_chars += len(chunk)
+        included += 1
 
     return "\n".join(parts)
 

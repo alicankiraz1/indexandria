@@ -63,9 +63,11 @@ Claude will crawl the pages, pull the content into context, and use it while wri
 |-----------|---------|-------------|
 | `url` | required | Starting URL to crawl |
 | `depth` | 2 | Link levels to follow (1-3) |
-| `max_pages` | 30 | Maximum pages to fetch |
+| `max_pages` | 15 | Maximum pages to fetch (up to 50) |
 | `include_patterns` | none | URL globs to include (e.g. `["*/docs/*"]`) |
 | `exclude_patterns` | none | URL globs to exclude (e.g. `["*/blog/*"]`) |
+
+Output is automatically capped at ~110 KB to stay within Claude Code's MCP token limit. If a crawl exceeds this, the remaining pages are noted but omitted.
 
 ## Tips
 
@@ -73,13 +75,15 @@ Claude will crawl the pages, pull the content into context, and use it while wri
 - **Use depth=1** for a single page, **depth=2** to pull in linked subpages
 - **Cap with max_pages** if you're worried about context space
 - **Use include_patterns** to stay within a docs section: `["*/reference/*"]`
+- Only `http` and `https` URLs are accepted
 
 ## Security & Privacy
 
 - **No data stored** — nothing is written to disk, ever
 - **No external services** — all processing is local
+- **URL validation** — only http/https schemes are allowed
 - **Ephemeral** — content exists only in the current conversation
-- **Open source** — the entire codebase is ~150 lines of Python
+- **Open source** — the entire codebase is ~180 lines of Python
 
 ## Contributing
 
