@@ -15,7 +15,7 @@ Indexandria is a [Claude Code](https://code.claude.com) plugin that fetches docu
 
 Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 
-## Use
+## Quick Start
 
 Tell Claude to fetch some docs:
 
@@ -23,41 +23,62 @@ Tell Claude to fetch some docs:
 > Crawl https://fastapi.tiangolo.com/tutorial/ and then build me an API with validation
 ```
 
-Or use the skill directly:
+For larger documentation sites, use deep indexing:
 
 ```
-> /indexandria:doc-search https://react.dev/reference/react/useEffect
+> Index the full React reference docs, then help me build a custom hook
 ```
 
-Claude will crawl the pages, pull the content into context, and use it while writing code. That's it.
+## Two Workflows
 
-## How It Works
+### Quick Mode — Small, Focused Crawls
+
+`crawl_docs` fetches 1-15 pages and returns content directly into context. Best for single API lookups and short tutorials.
 
 ```
-"Crawl the FastAPI docs"
-        │
-        ▼
-  ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-  │   Claude     │────▶│  crawl_docs  │────▶│   Crawler    │
-  │   Code       │     │  (MCP tool)  │     │ httpx + BS4  │
-  └─────────────┘     └──────────────┘     └──────────────┘
-        │                                          │
-        │              markdown content            │
-        │◀─────────────────────────────────────────┘
-        │
-        ▼
-  Claude writes code using the docs as context
+"Crawl the useEffect docs"
+       │
+       ▼
+ ┌───────────┐     ┌────────────┐     ┌───────────┐
+ │  Claude    │────▶│ crawl_docs │────▶│  Crawler   │
+ │  Code      │     │ (MCP tool) │     │ httpx+BS4  │
+ └───────────┘     └────────────┘     └───────────┘
+       │                                     │
+       │          markdown content           │
+       │◀────────────────────────────────────┘
+       ▼
+ Claude writes code using the docs
 ```
 
-1. You mention a URL or ask about a framework
-2. Claude calls `crawl_docs` with the URL
-3. The crawler fetches pages, strips noise, converts to markdown
-4. Content goes straight into the conversation context
-5. Claude uses it to write accurate code
+### Deep Mode — Large Documentation Sites
 
-**No database. No files. No background process.** Everything lives in the conversation.
+`index_docs` crawls up to 100 pages into memory and returns a compact table of contents. Claude then uses `search_indexed` and `get_indexed_page` to selectively read only what's needed.
 
-## Options
+```
+"Index the FastAPI tutorial, then build OAuth2 auth"
+       │
+       ▼
+ ┌───────────┐     ┌────────────┐     ┌───────────┐
+ │  Claude    │────▶│ index_docs │────▶│  Crawler   │
+ │  Code      │     │            │     │ (100 pages)│
+ └───────────┘     └────────────┘     └───────────┘
+       │                                     │
+       │          compact index (TOC)        │
+       │◀────────────────────────────────────┘
+       │
+       ├── search_indexed("OAuth2") ──▶ page 23, 24
+       │
+       ├── get_indexed_page([23, 24]) ──▶ full content
+       │
+       ▼
+ Claude writes code with precise docs reference
+```
+
+**No database. No files. No background process.** Everything lives in memory for the session.
+
+## Tools
+
+### `crawl_docs` — Quick mode
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -67,14 +88,37 @@ Claude will crawl the pages, pull the content into context, and use it while wri
 | `include_patterns` | none | URL globs to include (e.g. `["*/docs/*"]`) |
 | `exclude_patterns` | none | URL globs to exclude (e.g. `["*/blog/*"]`) |
 
-Output is automatically capped at ~110 KB to stay within Claude Code's MCP token limit. If a crawl exceeds this, the remaining pages are noted but omitted.
+### `index_docs` — Deep mode
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `url` | required | Starting URL to crawl |
+| `depth` | 2 | Link levels to follow (1-3) |
+| `max_pages` | 50 | Maximum pages to index (up to 100) |
+| `include_patterns` | none | URL globs to include |
+| `exclude_patterns` | none | URL globs to exclude |
+
+### `get_indexed_page` — Read from index
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `page_numbers` | required | List of 1-based page numbers (e.g. `[1, 5, 12]`) |
+
+### `search_indexed` — Search across index
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `query` | required | Search term (case-insensitive) |
+| `max_results` | 10 | Maximum matches to return |
+
+Output from all tools is capped at ~110 KB to stay within Claude Code's MCP token limit.
 
 ## Tips
 
 - **Be specific** — point to the relevant docs section, not the entire site
-- **Use depth=1** for a single page, **depth=2** to pull in linked subpages
-- **Cap with max_pages** if you're worried about context space
+- **Quick mode** for 1-5 pages, **deep mode** for 20+ pages
 - **Use include_patterns** to stay within a docs section: `["*/reference/*"]`
+- **Search before reading** — with deep mode, search first to find the right pages
 - Only `http` and `https` URLs are accepted
 
 ## Security & Privacy
@@ -82,8 +126,8 @@ Output is automatically capped at ~110 KB to stay within Claude Code's MCP token
 - **No data stored** — nothing is written to disk, ever
 - **No external services** — all processing is local
 - **URL validation** — only http/https schemes are allowed
-- **Ephemeral** — content exists only in the current conversation
-- **Open source** — the entire codebase is ~180 lines of Python
+- **Session-scoped** — indexed content exists only in memory, cleared when the session ends
+- **Open source** — the entire codebase is ~300 lines of Python
 
 ## Contributing
 

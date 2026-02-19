@@ -17,7 +17,7 @@ from markdownify import markdownify as md
 logger = logging.getLogger(__name__)
 
 DEFAULT_HEADERS = {
-    "User-Agent": "Indexandria/2.0 (+https://github.com/alicankiraz1/indexandria)",
+    "User-Agent": "Indexandria/3.0 (+https://github.com/alicankiraz1/indexandria)",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
 }
@@ -37,8 +37,8 @@ SKIP_EXTENSIONS = (
 MAX_PAGE_SIZE = 5 * 1024 * 1024
 
 
-def _extract(html: str, url: str) -> tuple[str, str, list[str]]:
-    """Extract title, markdown content, and links from HTML."""
+def _extract(html: str, url: str) -> tuple[str, str, list[str], list[str]]:
+    """Extract title, markdown content, links, and headings from HTML."""
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception:
@@ -75,7 +75,12 @@ def _extract(html: str, url: str) -> tuple[str, str, list[str]]:
     markdown_content = md(str(content_root), heading_style="ATX", bullets="-")
     markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content).strip()
 
-    return title, markdown_content, links
+    headings = [
+        f"{level} {text}"
+        for level, text in re.findall(r"^(#{1,3}) (.+)$", markdown_content, re.MULTILINE)
+    ]
+
+    return title, markdown_content, links, headings
 
 
 def _normalize(url: str) -> str:
@@ -148,11 +153,11 @@ async def crawl(
                             return None
                         if len(resp.content) > MAX_PAGE_SIZE:
                             return None
-                        title, content, links = _extract(resp.text, url)
+                        title, content, links, headings = _extract(resp.text, url)
                         if len(content) < 50:
                             return None
                         return {"url": url, "title": title, "content": content,
-                                "links": links, "depth": depth}
+                                "links": links, "headings": headings, "depth": depth}
                     except Exception as e:
                         logger.warning("Skip %s: %s", url, e)
                         skipped += 1
