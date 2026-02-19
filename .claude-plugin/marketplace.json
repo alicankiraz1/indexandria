@@ -4,19 +4,19 @@
     "name": "Alican Kiraz"
   },
   "metadata": {
-    "description": "Indexandria — crawl and index web documentation for Claude Code, like Cursor's built-in indexer.",
-    "version": "2.0.0"
+    "description": "Indexandria — crawl, index, and search web documentation directly inside Claude Code. Supports quick lookups and deep multi-page indexing.",
+    "version": "3.0.0"
   },
   "plugins": [
     {
       "name": "indexandria",
       "source": "./plugins/indexandria",
-      "description": "Crawl web documentation straight into Claude Code's context — no database, no disk writes.",
-      "version": "2.0.0",
+      "description": "Crawl web documentation straight into Claude Code's context. Quick mode for 1-15 pages, deep mode for up to 100 pages with search — no database, no disk writes.",
+      "version": "3.0.0",
       "author": {
         "name": "Alican Kiraz"
       },
-      "keywords": ["indexer", "documentation", "search", "crawler", "docs"],
+      "keywords": ["indexer", "documentation", "search", "crawler", "docs", "indexandria"],
       "license": "MIT",
       "category": "code-intelligence"
     }

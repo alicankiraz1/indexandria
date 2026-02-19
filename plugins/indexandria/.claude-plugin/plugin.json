@@ -1,7 +1,7 @@
 {
   "name": "indexandria",
   "version": "3.0.0",
-  "description": "Crawl and index web documentation for context-aware coding assistance. Works like Cursor's built-in indexer for Claude Code.",
+  "description": "Crawl, index, and search web documentation directly inside Claude Code. Quick mode for focused lookups, deep mode for up to 100 pages with in-memory search.",
   "author": {
     "name": "Alican Kiraz"
   },

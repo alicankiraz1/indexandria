@@ -127,7 +127,7 @@ Output from all tools is capped at ~110 KB to stay within Claude Code's MCP toke
 - **No external services** — all processing is local
 - **URL validation** — only http/https schemes are allowed
 - **Session-scoped** — indexed content exists only in memory, cleared when the session ends
-- **Open source** — the entire codebase is ~300 lines of Python
+- **Open source** — the entire codebase is ~500 lines of Python
 
 ## Contributing
 
